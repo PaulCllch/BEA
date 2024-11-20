@@ -47,17 +47,17 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="Cp8m91pTQywnMTWisGuW-7" value="Ajouter les attributs azimut, élévation, visibilité du Soleil, cap, assiette, inclinaison à la couche de la trajectoire" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="253.5" y="240" width="283" height="110" as="geometry" />
+          <mxGeometry x="342.5" y="290" width="283" height="110" as="geometry" />
         </mxCell>
         <mxCell id="Cp8m91pTQywnMTWisGuW-15" value="Télécharger un export en format JSON ou CSV" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="180" y="380" width="133" height="110" as="geometry" />
+          <mxGeometry x="210" y="430" width="143" height="120" as="geometry" />
         </mxCell>
         <mxCell id="Cp8m91pTQywnMTWisGuW-16" value="Afficher des flèches de couleurs (vert si le Soleil n&#39;set pas visible, rouge sinon) renseignant sur la visibilité du Soleil" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="414" y="380" width="186" height="120" as="geometry" />
+          <mxGeometry x="510" y="430" width="186" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="Cp8m91pTQywnMTWisGuW-17" value="" style="endArrow=classic;html=1;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;exitX=0.634;exitY=1.009;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.247;entryY=0.083;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="Cp8m91pTQywnMTWisGuW-7" target="Cp8m91pTQywnMTWisGuW-16">
+        <mxCell id="Cp8m91pTQywnMTWisGuW-17" value="" style="endArrow=classic;html=1;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;entryX=0.247;entryY=0.083;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="Cp8m91pTQywnMTWisGuW-7" target="Cp8m91pTQywnMTWisGuW-16">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="390" y="440" as="sourcePoint" />
+            <mxPoint x="510" y="390" as="sourcePoint" />
             <mxPoint x="440" y="390" as="targetPoint" />
           </mxGeometry>
         </mxCell>
@@ -102,6 +102,30 @@
             <mxPoint x="308" y="177" as="sourcePoint" />
             <mxPoint x="415" y="260" as="targetPoint" />
           </mxGeometry>
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-27" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="273" y="56" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-28" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="491" y="58" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-29" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="684" y="60" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-30" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="540" y="400" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-31" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="300" y="400" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-32" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="341" y="230" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-33" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="489" y="206" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Cp8m91pTQywnMTWisGuW-34" value="&amp;lt;&amp;lt;extend&amp;gt;&amp;gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="591" y="209" width="60" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
