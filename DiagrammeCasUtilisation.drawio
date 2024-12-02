@@ -64,11 +64,11 @@
             <mxPoint x="303" y="406" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="Cp8m91pTQywnMTWisGuW-21" value="&lt;div&gt;Charger les surfaces réfléchissante&lt;br&gt;&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="610" y="200" width="140" height="70" as="geometry" />
+        <mxCell id="Cp8m91pTQywnMTWisGuW-21" value="&lt;div&gt;Téléchargement automatique&lt;/div&gt;&lt;div&gt;des surfaces réfléchissantes d&#39;après l&#39;emprise de la trajectoire&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="580" y="160" width="190" height="100" as="geometry" />
         </mxCell>
         <mxCell id="Cp8m91pTQywnMTWisGuW-22" value="&lt;div&gt;Afficher les surfaces réfléchissante&lt;br&gt;&lt;/div&gt;&lt;div&gt;(couche vecteur)&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="597" y="-30" width="166" height="80" as="geometry" />
+          <mxGeometry x="592" y="-30" width="166" height="80" as="geometry" />
         </mxCell>
         <mxCell id="Cp8m91pTQywnMTWisGuW-23" value="" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="Cp8m91pTQywnMTWisGuW-21" target="Cp8m91pTQywnMTWisGuW-22" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
@@ -88,7 +88,7 @@
             <mxPoint x="405" y="250" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="Cp8m91pTQywnMTWisGuW-26" value="" style="endArrow=classic;html=1;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" target="Cp8m91pTQywnMTWisGuW-7" edge="1">
+        <mxCell id="Cp8m91pTQywnMTWisGuW-26" value="" style="endArrow=classic;html=1;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.526;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="Cp8m91pTQywnMTWisGuW-21" target="Cp8m91pTQywnMTWisGuW-7" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="680" y="270" as="sourcePoint" />
             <mxPoint x="415" y="260" as="targetPoint" />
