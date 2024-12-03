@@ -27,6 +27,9 @@
         <mxCell id="o1C6gEMfqOJ0pDCVifVL-65" value="Choisit le chemin&#xa;où sera enregistré&#xa;l&#39;export" style="" parent="2" vertex="1">
           <mxGeometry x="65.5" y="642" width="110" height="75" as="geometry" />
         </mxCell>
+        <mxCell id="4ZwcyzuAHHSgLeM-BFf_-43" value=" Sélectionne&#xa;les attributs&#xa;de cap et d&#39;assiette" style="" vertex="1" parent="2">
+          <mxGeometry x="65.5" y="538.5" width="110" height="75" as="geometry" />
+        </mxCell>
         <mxCell id="3" value="Plugin (.py)" style="swimlane;whiteSpace=wrap" parent="1" vertex="1">
           <mxGeometry x="444.5" y="10" width="280" height="790" as="geometry" />
         </mxCell>
@@ -169,6 +172,12 @@
           <mxGeometry x="-404.5" y="128" as="geometry">
             <mxPoint x="585.8571428571429" y="433" as="targetPoint" />
             <mxPoint x="585.9359999999999" y="413.44999999999993" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="4ZwcyzuAHHSgLeM-BFf_-44" value="" style="edgeStyle=elbowEdgeStyle;elbow=horizontal;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#FF0000;endFill=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="4ZwcyzuAHHSgLeM-BFf_-43" target="o1C6gEMfqOJ0pDCVifVL-49">
+          <mxGeometry x="40" y="138" as="geometry">
+            <mxPoint x="410" y="630" as="targetPoint" />
+            <mxPoint x="586.9469999999999" y="643.1679999999999" as="sourcePoint" />
           </mxGeometry>
         </mxCell>
       </root>
