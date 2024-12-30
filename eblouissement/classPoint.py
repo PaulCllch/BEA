@@ -1,6 +1,7 @@
 import pandas as pd
 import math
 from datetime import datetime, timezone
+from .classMNT import Mnt
 
 
 class Point:
@@ -84,5 +85,34 @@ class Point:
         azimuth_deg = (math.degrees(azimuth_rad) + 360) % 360  # Convertir en degrés [0, 360]
         return azimuth_deg, hauteur_deg
         
+    
+    # def get_visibility(self,list_mnt_files_paths,mnt):
+    #     longitude = math.radians(self.longitude)
+    #     latitude = math.radians(self.latitude)
+    #     altitude = self.altitude
+    #     azimut = math.radians(self.get_azimut())
+    #     hauteur = self.get_azimut_hauteur()
+    #     R = 6371
+    #     for distance in range(100):
+    #         # Calcul de l'angle vertical entre les 2 points
+    #         lat_mnt = math.asin(math.sin(latitude) * math.cos(distance / R) + math.cos(latitude) * math.sin(distance / R) * math.cos(azimut))
+    #         lon_mnt = longitude + math.atan2(math.sin(azimut) * math.sin(distance / R) * math.cos(latitude), math.cos(distance / R) - math.sin(latitude) * math.sin(lat_mnt))
+    #         mnt = Mnt()
+    #         alt_mnt = mnt.getAltitude(lon_mnt,lat_mnt)
+    #         delta_lat = lat_mnt - latitude
+    #         delta_lon = lon_mnt - longitude  
+    #         a = math.sin(delta_lat / 2)**2 + math.cos(latitude) * math.cos(lat_mnt) * math.sin(delta_lon / 2)**2
+    #         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    #         d_h = R * c 
+    #         d_v = (alt_mnt - altitude) / 1000
+    #         angle_rad = math.atan2(d_v, d_h)
+    #         angle_deg = math.degrees(angle_rad)
+    #         if angle_deg > hauteur:
+    #             return False
+    #     return True
+    
+    
+    def get_estimation(self):
+        pass
     
     

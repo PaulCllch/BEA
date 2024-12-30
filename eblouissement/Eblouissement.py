@@ -33,6 +33,7 @@ from .Eblouissement_dialog import EblouissementDialog
 import os.path
 
 import pandas as pd
+import numpy as np
 
 from .classTrajectoire import Trajectoire
 from .mnt import Mnt
@@ -197,10 +198,10 @@ class Eblouissement:
             self.dlg = EblouissementDialog()
             
             self.dlg.select_traj.layerChanged.connect(self.updateComboBoxes)
-            self.dlg.button_sun_pos_calc.clicked.connect(self.fonctButtonCalc)
             
-            self.dlg.parcourir_mnt.clicked.connect(self.loadMNT)
-            self.dlg.button_vis_calc.clicked.connect(self.loadHGTFiles)
+            self.dlg.parcourir_mnt.clicked.connect(self.loadMntFolder)
+            
+            self.dlg.button_sun_pos_calc.clicked.connect(self.fonctButtonCalc)            
         
         # show the dialog
         self.dlg.show()
@@ -308,29 +309,37 @@ class Eblouissement:
     
     
     def fonctButtonCalc(self):
+        # Ajout des champs azimut et hauteur dans la table d'attributs
         df_pts = self.createDataframe()
         trajectoire = Trajectoire(df_pts)
         df_pts_maj = trajectoire.get_df_pts_maj()
         self.addSunFields(df_pts_maj)
+        # Idée 1 : Charger la liste de toutes les dalles mnt utiles
+        emprise = trajectoire.emprise()
+        list_mnt_files_names = self.getMntFilesNames(emprise)
+        list_mnt_paths = self.getMntPaths(list_mnt_files_names)
+        print(list_mnt_paths)
+        # Idée 2 : Prendre le chemin des dalles et xdhzvycdz
+        folder = self.dlg.text_mnt.text()
+        
         
 
     # Méthodes pour le calcul de la visibilité
 
-    def loadMNT(self):
+    def loadMntFolder(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        filename, _ = QFileDialog.getOpenFileName(
-            self.dlg, "Choisir un dossier contenant des fichier hgt...", 
+        directory = QFileDialog.getExistingDirectory(
+            self.dlg, "Choisir un dossier contenant des fichiers hgt...", 
             options=options
         )
-        if filename:
-            self.dlg.text_mnt.setText(filename)
+        if directory:
+            self.dlg.text_mnt.setText(directory)
+
             
             
-    def loadHGTFiles(self):
-        trajectoire = self.trajectoire
+    def getMntFilesNames(self,emprise):
         # Récupère l'emprise de la trajectoire
-        emprise = trajectoire.get_emprise()
         lon_min = emprise[0][0]
         lon_max = emprise[0][1]
         lat_min = emprise[1][0]
@@ -342,14 +351,22 @@ class Eblouissement:
         E_sup = np.floor(lon_max) + 1
         # Détermine les noms de tous les fichiers dont nous avons besoin
         list_files_names = []
-        for n in range (N_sup-N_inf):
+        for n in range (int(N_sup-N_inf)):
             val_N = N_inf + n
-            for e in range(E_sup-E_inf):
-                val_E = np.char.zfill((E_inf + e).astype(str), 3)
-                file_name = 'N' + val_N + 'E' + val_E + '.hgt'
+            for e in range (int(E_sup-E_inf)):
+                val_E = E_inf + e
+                file_name = 'N' + str(int(val_N)) + 'E' + str(int(val_E)).zfill(3) + '.hgt'
                 list_files_names.append(file_name)
-        print(list_files_names)
+        return list_files_names
         
+    
+    def getMntPaths(self,list_files_names):
+        MntPaths = []
+        folder = self.dlg.text_mnt.text()
+        for k in range(len(list_files_names)):
+            path = str(folder) + str(list_files_names[k])
+            MntPaths.append(path)
+        return MntPaths
 
 
 

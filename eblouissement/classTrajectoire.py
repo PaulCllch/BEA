@@ -44,27 +44,14 @@ class Trajectoire:
         return df_pts_maj
         
         
-    
     def emprise(self):
-        list_pts = self.list_pts()
-        first_pt = list_pts[0]
-        lon_min = first_pt.get_longitude()
-        lat_min = first_pt.get_latitude()
-        lon_max = first_pt.get_longitude()
-        lat_max = first_pt.get_latitude()
-        for pt in list_pts:
-            lon = pt.get_longitude()
-            lat = pt.get_latitude()
-            if lon < lon_min:
-                lon_min = lon
-            elif lon > lon_max:
-                lon_max = lon
-            if lat < lat_min:
-                lat_min = lat
-            elif lat > lat_max:
-                lat_max = lat
-        emprise = np.array([[lon_min,lon_max],
-                            [lat_min,lat_max]])
+        df_pts = self.get_df_pts()
+        lon_min, lon_max = df_pts['longitude'].min(), df_pts['longitude'].max()
+        lat_min, lat_max = df_pts['latitude'].min(), df_pts['latitude'].max()
+        emprise = np.array([[lon_min, lon_max],
+                            [lat_min, lat_max]])
         return emprise
+
+
 
     
