@@ -24,7 +24,7 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsProject, QgsPointXY
+from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsProject, QgsPointXY, QgsRendererRange, QgsSymbol, QgsMarkerSymbol, QgsProperty, QgsSymbolLayer, QgsSimpleMarkerSymbolLayer
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -34,6 +34,8 @@ import os.path
 
 import pandas as pd
 import numpy as np
+import csv
+import json
 
 from .classTrajectoire import Trajectoire
 from .mnt import Mnt
@@ -198,10 +200,14 @@ class Eblouissement:
             self.dlg = EblouissementDialog()
             
             self.dlg.select_traj.layerChanged.connect(self.updateComboBoxes)
-            
             self.dlg.parcourir_mnt.clicked.connect(self.loadMntFolder)
+            self.dlg.parcourir_sr.clicked.connect(self.loadSrFolder)
             
-            self.dlg.button_sun_pos_calc.clicked.connect(self.fonctButtonCalc)            
+            self.dlg.button_sun_pos_calc.clicked.connect(self.SunButton)
+            self.dlg.button_display.clicked.connect(self.displaySun)
+                        
+            self.dlg.parcourir_export.clicked.connect(self.chooseDirectory)
+            self.dlg.button_export.clicked.connect(self.SaveExports)
         
         # show the dialog
         self.dlg.show()
@@ -214,8 +220,8 @@ class Eblouissement:
             pass
 
 
-    # Méthodes pour le calcul de position du Soleil
-    
+    # Interaction directe avec l'interface graphique
+        
     def updateComboBoxes(self):
         layer = self.dlg.select_traj.currentLayer()
         if layer is not None:
@@ -228,8 +234,40 @@ class Eblouissement:
             print(f"Champs de la couche {layer.name()} mis à jour.")
         else:
             print("Aucune couche sélectionnée.")
+                   
+    def loadMntFolder(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        directory = QFileDialog.getExistingDirectory(
+            self.dlg, "Choisir un dossier contenant des fichiers hgt...", 
+            options=options
+        )
+        if directory:
+            self.dlg.text_mnt.setText(directory)
             
+    def loadSrFolder(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        directory = QFileDialog.getExistingDirectory(
+            self.dlg, "Choisir un dossier contenant des fichiers shp...", 
+            options=options
+        )
+        if directory:
+            self.dlg.text_sr.setText(directory)
+               
+    def chooseDirectory(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        directory = QFileDialog.getExistingDirectory(
+            self.dlg, "Choisir un chemin où enregistrer les exports...", 
+            options=options
+        )
+        if directory:
+            self.dlg.text_export.setText(directory)
     
+    
+    # Mise à jour de la table d'attribut
+            
     def createDataframe(self):
         layer = self.dlg.select_traj.currentLayer()
         if not layer:
@@ -253,7 +291,6 @@ class Eblouissement:
         df_pts = pd.DataFrame(data, columns=new_names)
         return df_pts
     
-    
     def addSunFields(self, df_pts_maj):
         layer = self.dlg.select_traj.currentLayer()
         lon_field = self.dlg.select_lon.currentText()
@@ -270,6 +307,10 @@ class Eblouissement:
             layer.dataProvider().addAttributes([QgsField('az_sun', QVariant.Double)])
         if 'h_sun' not in existing_fields:
             layer.dataProvider().addAttributes([QgsField('h_sun', QVariant.Double)])
+        if 'visibility' not in existing_fields:
+            layer.dataProvider().addAttributes([QgsField('visibility', QVariant.Bool)])
+        if 'éblouissement' not in existing_fields:
+            layer.dataProvider().addAttributes([QgsField('éblouissement', QVariant.Double)])
         layer.updateFields()
         # Modification des valeurs des champs
         layer.startEditing()
@@ -295,79 +336,228 @@ class Eblouissement:
                     # Extraction des valeurs 'azimut_sun' et 'hauteur_sun'
                     az_sun_value = match.iloc[0]['azimut_sun']
                     h_sun_value = match.iloc[0]['hauteur_sun']
+                    visibility_value = match.iloc[0]['visibility']
+                    eblouissement_value = match.iloc[0]['estimation']
                     # Mise à jour des attributs
                     feature.setAttribute('az_sun', float(az_sun_value))
                     feature.setAttribute('h_sun', float(h_sun_value))
+                    feature.setAttribute('visibility', bool(visibility_value))
+                    feature.setAttribute('éblouissement', float(eblouissement_value))
                     layer.updateFeature(feature)
                 else:
                     print(f"Aucune correspondance trouvée pour la feature avec les valeurs : {feature_lon_value}, {feature_lat_value}, {feature_time_value}")
             layer.commitChanges()
-            print("Les champs 'az_sun' et 'h_sun' ont été ajoutés et mis à jour.")
+            print("Les champs 'az_sun', 'h_sun', 'visibility' et 'éblouissement' ont été ajoutés et mis à jour.")
         except Exception as e:
             layer.rollBack()
             print(f"Erreur lors de la mise à jour des champs : {e}")
     
-    
-    def fonctButtonCalc(self):
-        # Ajout des champs azimut et hauteur dans la table d'attributs
+    def SunButton(self):
         df_pts = self.createDataframe()
-        trajectoire = Trajectoire(df_pts)
+        mnt_folder = self.dlg.text_mnt.text()
+        trajectoire = Trajectoire(df_pts, mnt_folder)
         df_pts_maj = trajectoire.get_df_pts_maj()
         self.addSunFields(df_pts_maj)
-        # Idée 1 : Charger la liste de toutes les dalles mnt utiles
-        emprise = trajectoire.emprise()
-        list_mnt_files_names = self.getMntFilesNames(emprise)
-        list_mnt_paths = self.getMntPaths(list_mnt_files_names)
-        print(list_mnt_paths)
-        # Idée 2 : Prendre le chemin des dalles et xdhzvycdz
-        folder = self.dlg.text_mnt.text()
-        
-        
-
-    # Méthodes pour le calcul de la visibilité
-
-    def loadMntFolder(self):
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        directory = QFileDialog.getExistingDirectory(
-            self.dlg, "Choisir un dossier contenant des fichiers hgt...", 
-            options=options
-        )
-        if directory:
-            self.dlg.text_mnt.setText(directory)
-
-            
-            
-    def getMntFilesNames(self,emprise):
-        # Récupère l'emprise de la trajectoire
-        lon_min = emprise[0][0]
-        lon_max = emprise[0][1]
-        lat_min = emprise[1][0]
-        lat_max = emprise[1][1]
-        # Détermine les extremums
-        N_inf = np.floor(lat_min)
-        N_sup = np.floor(lat_max) + 1
-        E_inf = np.floor(lon_min)
-        E_sup = np.floor(lon_max) + 1
-        # Détermine les noms de tous les fichiers dont nous avons besoin
-        list_files_names = []
-        for n in range (int(N_sup-N_inf)):
-            val_N = N_inf + n
-            for e in range (int(E_sup-E_inf)):
-                val_E = E_inf + e
-                file_name = 'N' + str(int(val_N)) + 'E' + str(int(val_E)).zfill(3) + '.hgt'
-                list_files_names.append(file_name)
-        return list_files_names
         
     
-    def getMntPaths(self,list_files_names):
-        MntPaths = []
-        folder = self.dlg.text_mnt.text()
-        for k in range(len(list_files_names)):
-            path = str(folder) + str(list_files_names[k])
-            MntPaths.append(path)
-        return MntPaths
+    # Créer et enregistrer un export (csv ou json)
+          
+    def SaveExports(self):
+        # Récupérer le chemin du dossier
+        directory = self.dlg.text_export.text()
+        # Vérifier si le dossier est valide
+        if not os.path.isdir(directory):
+            print("Erreur : Le dossier spécifié n'existe pas ou n'est pas accessible.")
+            return
+        # Générer les fichiers CSV et/ou JSON
+        if self.dlg.csv.isChecked():
+            self.GenerateCSV(os.path.join(directory, "SunTraj.csv"))
+        if self.dlg.json.isChecked():
+            self.GenerateJSON(os.path.join(directory, "SunTraj.json"))
+    
+    def GenerateCSV(self, filepath):
+        layer = self.dlg.select_traj.currentLayer()
+        try:
+            with open(filepath, mode='w', newline='', encoding='utf-8') as csv_file:
+                writer = csv.writer(csv_file)
+                field_names = [field.name() for field in layer.fields()]
+                writer.writerow(field_names)
+                for feature in layer.getFeatures():
+                    writer.writerow([feature[field.name()] for field in layer.fields()])
+            print(f"Exportation terminée. Fichier CSV enregistré à : {filepath}")
+        except Exception as e:
+            print(f"Erreur lors de l'exportation CSV : {e}")
+    
+    # @staticmethod
+    # def QVariant_to_python(value):
+    #     """Convertir un QVariant en un type Python natif."""
+    #     if isinstance(value, QVariant):
+    #         if value.isNull():
+    #             return None
+    #         try:
+    #             return value.toPyObject()
+    #         except AttributeError:
+    #             return str(value)  # Fallback si aucune autre méthode n'est disponible
+    #     return value
 
+    # def GenerateJSON(self, filepath):
+    #     layer = self.dlg.select_traj.currentLayer()
+    #     try:
+    #         features_list = []
+    #         for feature in layer.getFeatures():
+    #             feature_dict = {
+    #                 field.name(): self.QVariant_to_python(feature[field.name()])
+    #                 for field in layer.fields()
+    #             }
+    #             features_list.append(feature_dict)
+    #         with open(filepath, 'w', encoding='utf-8') as json_file:
+    #             json.dump(features_list, json_file, ensure_ascii=False, indent=4)
+    #         print(f"Exportation terminée. Fichier JSON enregistré à : {filepath}")
+    #     except Exception as e:
+    #         print(f"Erreur lors de l'exportation JSON : {e}")
+        
+      # def addPtsLayer(self):
+    #     trajectoire = self.trajectoire
+    #     df_pts = trajectoire.df_pts
+    #     layer = QgsVectorLayer("point?crs=epsg:4326", "trajectoire", "memory")
+    #     provider = layer.dataProvider()
+    #     provider.addAttributes([
+    #         QgsField("longitude", QVariant.Double),
+    #         QgsField("latitude", QVariant.Double),
+    #         QgsField("altitude", QVariant.Double),
+    #     ])
+    #     layer.updateFields()
+    #     features = []
+    #     for _, row in df_pts.iterrows():
+    #         point = QgsPointXY(row['longitude'], row['latitude'])
+    #         feature = QgsFeature()
+    #         feature.setGeometry(QgsGeometry.fromPointXY(point))
+    #         feature.setAttributes([row['longitude'], row['latitude'], row['alt_m']])
+    #         features.append(feature)
+    #     provider.addFeatures(features)
+    #     QgsProject.instance().addMapLayer(layer)
+    
+    def displaySun(self):
+        layer = self.dlg.select_traj.currentLayer()  # Couche sélectionnée dans l'interface
+        # Récupérer les noms des champs
+        lon_field = self.dlg.select_lon.currentText()
+        lat_field = self.dlg.select_lat.currentText()
+        alt_field = self.dlg.select_alt.currentText()
+        az_field = 'az_sun'
+        h_field = 'h_sun'
+        vis_field = 'visibility'
+        estimation_field = 'éblouissement'
+        # Création d'une nouvelle couche mémoire
+        new_layer = QgsVectorLayer("Point?crs=EPSG:4326", "Sun", "memory")
+        provider = new_layer.dataProvider()
+        # Ajouter des champs à la nouvelle couche
+        provider.addAttributes([
+            QgsField("longitude", QVariant.Double),
+            QgsField("latitude", QVariant.Double),
+            QgsField("altitude", QVariant.Double),
+            QgsField("azimut", QVariant.Double),
+            QgsField("hauteur", QVariant.Double),
+            QgsField("visibilité", QVariant.Bool),
+            QgsField("éblouissement", QVariant.Double),
+        ])
+        new_layer.updateFields()
+        # Parcourir les entités de la couche source et ajouter les données à la nouvelle couche
+        features = []
+        for feature in layer.getFeatures():
+            lon = feature[lon_field]
+            lat = feature[lat_field]
+            alt = feature[alt_field]
+            az_sun = feature[az_field]
+            h_sun = feature[h_field]
+            visibility = feature[vis_field]
+            éblouissement = feature[estimation_field]
+            new_feature = QgsFeature()
+            point = QgsPointXY(lon, lat)
+            new_feature.setGeometry(QgsGeometry.fromPointXY(point))
+            new_feature.setAttributes([lon, lat, alt, az_sun, h_sun, visibility, éblouissement])
+            if visibility:
+                symbol = QgsMarkerSymbol.createSimple({'name': 'arrow', 'color': 'red', 'size': '3'})
+                QgsMarkerSymbol.setAngle(az_sun)
+                QgsMarkerSymbol.setColor(az_sun)
+            features.append(new_feature)
+        provider.addFeatures(features)
+        # Ajouter les points sur la carte 2D QGIS
+        QgsProject.instance().addMapLayer(new_layer)
+        # Ajouter les flèches pour représenter le Soleil
+        
+        symbol_layer = symbol.symbolLayer(0)
+        # Vérifier que symbol_layer est valide et est du type approprié
+        if isinstance(symbol_layer, QgsSimpleMarkerSymbolLayer):
+            # Définir les propriétés dynamiques
+            symbol_layer.setDataDefinedProperty(
+                QgsSimpleMarkerSymbolLayer.PropertyAngle, QgsProperty.fromExpression('"az_sun"')  # Orientation selon l'azimut
+            )
+            symbol_layer.setDataDefinedProperty(
+                QgsSimpleMarkerSymbolLayer.PropertySize, QgsProperty.fromExpression(
+                    'CASE WHEN "visibility" THEN 3 ELSE 0 END'  # Taille selon visibilité
+                )
+            )
+            symbol_layer.setDataDefinedProperty(
+                QgsSimpleMarkerSymbolLayer.PropertyFillColor, QgsProperty.fromExpression(
+                    'color_rgb(255, 255 - "éblouissement" * 2.55, 0)'  # Couleur selon l'éblouissement
+                )
+            )
+            symbol_layer.setDataDefinedProperty(
+                QgsSimpleMarkerSymbolLayer.PropertyOpacity, QgsProperty.fromExpression(
+                    '"visibility" * 1.0'  # Opacité si visible
+                )
+            )
+        # Appliquer le symbole à la couche
+        new_layer.renderer().setSymbol(symbol)
+        new_layer.triggerRepaint()
+        print("Les flèches ont été ajoutées à la couche 'Sun'.")
+        
+       
+                
+        
+        
+    # Méthodes pour le calcul de la visibilité
+
+    # def loadMntFolder(self):
+    #     options = QFileDialog.Options()
+    #     options |= QFileDialog.DontUseNativeDialog
+    #     directory = QFileDialog.getExistingDirectory(
+    #         self.dlg, "Choisir un dossier contenant des fichiers hgt...", 
+    #         options=options
+    #     )
+    #     if directory:
+    #         self.dlg.text_mnt.setText(directory)
+
+            
+    # def getMntFilesNames(self,emprise):
+    #     # Récupère l'emprise de la trajectoire
+    #     lon_min = emprise[0][0]
+    #     lon_max = emprise[0][1]
+    #     lat_min = emprise[1][0]
+    #     lat_max = emprise[1][1]
+    #     # Détermine les extremums
+    #     N_inf = np.floor(lat_min)
+    #     N_sup = np.floor(lat_max) + 1
+    #     E_inf = np.floor(lon_min)
+    #     E_sup = np.floor(lon_max) + 1
+    #     # Détermine les noms de tous les fichiers dont nous avons besoin
+    #     list_files_names = []
+    #     for n in range (int(N_sup-N_inf)):
+    #         val_N = N_inf + n
+    #         for e in range (int(E_sup-E_inf)):
+    #             val_E = E_inf + e
+    #             file_name = 'N' + str(int(val_N)) + 'E' + str(int(val_E)).zfill(3) + '.hgt'
+    #             list_files_names.append(file_name)
+    #     return list_files_names
+        
+    
+    # def getMntPaths(self,list_files_names):
+    #     MntPaths = []
+    #     folder = self.dlg.text_mnt.text()
+    #     for k in range(len(list_files_names)):
+    #         path = str(folder) + str(list_files_names[k])
+    #         MntPaths.append(path)
+    #     return MntPaths
 
 
     # def loadCSVFile(self):
