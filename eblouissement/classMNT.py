@@ -49,4 +49,3 @@ class Mnt:
         else:
             raise ValueError(f"Les coordonnées ({lat}, {lon}) sont en dehors des limites du MNT.")
 
-

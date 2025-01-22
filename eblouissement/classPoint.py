@@ -3,11 +3,13 @@ import pandas as pd
 import math
 from datetime import datetime, timezone, timedelta
 from .classMNT import Mnt
+from .classSR import SR
 
 
 class Point:
-    def __init__(self, longitude, latitude, altitude,  tTS_ms, cap, assiette, mnt_folder):
+    def __init__(self, longitude, latitude, altitude,  tTS_ms, cap, assiette, mnt_folder, sr_folder):
         self.mnt_folder = mnt_folder
+        self.sr_folder = sr_folder
         self.longitude = longitude
         self.latitude = latitude
         self.altitude = altitude
@@ -40,40 +42,11 @@ class Point:
     def get_estimation(self):
         return self.estimation
     
-    # def get_azimut_hauteur(self):
-    #     # Récupération des données
-    #     longitude = np.radians(self.longitude)  # Conversion en radians
-    #     latitude = np.radians(self.latitude)    # Conversion en radians
-    #     tTS_ms = self.tTS_ms                    # Temps Unix en ms
-    #     # Conversion du temps Unix en datetime
-    #     datetime_obj = datetime.utcfromtimestamp(tTS_ms / 1000.0)
-    #     jour_julien = datetime_obj.toordinal() + 1721424.5
-    #     # Constantes astronomiques
-    #     T = (jour_julien - 2451545.0) / 36525.0  # Temps en siècles julien depuis J2000.0
-    #     eps = np.radians(23.439 - 0.013 * T)     # Obliquité de l'écliptique en radians
-    #     PE = np.radians(282.937 + 1.724 * T)    # Longitude du périhélie en radians
-    #     # Calculs du Soleil
-    #     N = jour_julien - 2451545.0             # Numéro du jour depuis J2000.0
-    #     Lm = np.radians((N * 360 / 365.25) - 279.9)  # Longitude écliptique moyenne
-    #     Mm = Lm - PE                            # Anomalie moyenne en radians
-    #     Lv = Lm + np.radians(1.9146 * np.sin(Mm) + 0.02 * np.sin(2 * Mm))  # Longitude vraie
-    #     delta = np.arcsin(np.sin(Lv) * np.sin(eps))  # Déclinaison du Soleil en radians
-    #     # Temps et angle horaire
-    #     E = -0.1576 * np.sin(2 * Lv) / np.cos(delta) + 0.1276 * np.sin(Mm) - 0.0008 * np.sin(2 * Mm)
-    #     TP = 12 + np.degrees(longitude) / 15 + E    # Temps de passage au méridien en heures
-    #     heure = datetime_obj.hour + datetime_obj.minute / 60 + datetime_obj.second / 3600
-    #     H = np.radians((heure - TP) * 15)          # Angle horaire en radians
-    #     # Hauteur et azimut
-    #     h = np.arcsin(np.sin(latitude) * np.sin(delta) + np.cos(latitude) * np.cos(delta) * np.cos(H))
-    #     A = np.arctan2(np.sin(H), (np.cos(H) * np.sin(latitude) - np.tan(delta) * np.cos(latitude)))
-    #     # Conversion en degrés pour le retour
-    #     return np.degrees(A) % 360, np.degrees(h)
     
     def get_azimut_hauteur(self):
         # Récupération des attributs
         longitude = self.longitude
         latitude = self.latitude
-        altitude = self.altitude
         tTS_ms = self.tTS_ms
         # Conversion du temps UNIX (ms) en datetime UTC
         time = tTS_ms / 1000
@@ -183,25 +156,32 @@ class Point:
         if not self.visibility:
             return 0 
         # Différence d'angle horizontale (en degrés)
+        lon = self.longitude
+        lat = self.latitude
+        time = self.tTS_ms
+        az = self.get_azimut()
         cap = self.cap
         azimut = self.azimuth
-        diff_angle_horizontale = np.abs(cap - azimut) % 360
-        if diff_angle_horizontale > 180:
-            diff_angle_horizontale = 360 - diff_angle_horizontale
-        # Estimation horizontale
-        estimation_horizontale = max(0, 1 - (diff_angle_horizontale / 180)**2)
-        # Différence d'angle verticale (en degrés)
+        diff_angle_horizontale = cap-azimut
+        estimation_horizontale = np.exp(-0.001*diff_angle_horizontale**2)
         assiette = self.assiette
         hauteur = self.hauteur
-        diff_angle_verticale = np.abs(assiette - hauteur)
-        if diff_angle_verticale > 90:
-            diff_angle_verticale = 90
-        # Estimation verticale
-        estimation_verticale = max(0, 1 - (diff_angle_verticale / 90)**2)
+        diff_angle_verticale = assiette-hauteur
+        estimation_verticale = np.exp(-0.00035*diff_angle_verticale**2)
+        # sr_folder = self.sr_folder
+        # if sr_folder != '':
+        #     sr = SR(sr_folder)
+        #     pts_reflect = sr.Intersect(lon,lat,az)
+        #     for pt_reflect in pts_reflect:
+        #         pt_reflect = Point(longitude, latitude, altitude, tTS_ms, cap, assiette, mnt_folder, sr_folder)
+        #         h_pt_sun = pt_reflect.get_azimut()
+        #         h_pt_avion = 
+        #         if np.abs(h_pt_sun-h_pt-_avion)<5:
+        #             estimation_verticale_sr =  np.exp(-0.00035*diff_angle_verticale_sr**2)
+        #         if estimation_verticale_sr > estimation_verticale:
+        #             estimation_verticale = estimation_verticale_sr
+                    
         # Combinaison des estimations avec pondération
-        estimation = (0.7 * estimation_horizontale + 0.3 * estimation_verticale) * 100
-    
+        estimation = ((estimation_horizontale)**2 * estimation_verticale) * 100
         return estimation
 
-    
-    

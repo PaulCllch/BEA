@@ -24,7 +24,7 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsProject, QgsPointXY, QgsRendererRange, QgsSymbol, QgsMarkerSymbol, QgsProperty, QgsSymbolLayer, QgsSimpleMarkerSymbolLayer
+from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsProject, QgsPointXY, QgsRendererRange, QgsSymbol, QgsMarkerSymbol, QgsProperty, QgsSymbolLayer, QgsSimpleMarkerSymbolLayer, QgsFieldProxyModel
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -34,6 +34,7 @@ import os.path
 
 import pandas as pd
 import numpy as np
+from datetime import datetime, timezone
 import csv
 import json
 
@@ -201,7 +202,6 @@ class Eblouissement:
             
             self.dlg.select_traj.layerChanged.connect(self.updateComboBoxes)
             self.dlg.parcourir_mnt.clicked.connect(self.loadMntFolder)
-            self.dlg.parcourir_sr.clicked.connect(self.loadSrFolder)
             
             self.dlg.button_sun_pos_calc.clicked.connect(self.SunButton)
             self.dlg.button_display.clicked.connect(self.displaySun)
@@ -226,11 +226,23 @@ class Eblouissement:
         layer = self.dlg.select_traj.currentLayer()
         if layer is not None:
             self.dlg.select_lon.setLayer(layer)
+            self.dlg.select_lon.setField("longitude")
+            self.dlg.select_lon.setFilters(QgsFieldProxyModel.Numeric)
             self.dlg.select_lat.setLayer(layer)
+            self.dlg.select_lat.setField("latitude")
+            self.dlg.select_lat.setFilters(QgsFieldProxyModel.Numeric)
             self.dlg.select_alt.setLayer(layer)
+            self.dlg.select_alt.setField("alt_m")
+            self.dlg.select_alt.setFilters(QgsFieldProxyModel.Numeric)
             self.dlg.select_time.setLayer(layer)
+            self.dlg.select_time.setField("tTS_ms")
+            self.dlg.select_time.setFilters(QgsFieldProxyModel.Numeric)
             self.dlg.select_cap.setLayer(layer)
+            self.dlg.select_cap.setField("azimut geographique")
+            self.dlg.select_cap.setFilters(QgsFieldProxyModel.Numeric)
             self.dlg.select_assiette.setLayer(layer)
+            self.dlg.select_assiette.setField("assiette")
+            self.dlg.select_assiette.setFilters(QgsFieldProxyModel.Numeric)
             print(f"Champs de la couche {layer.name()} mis à jour.")
         else:
             print("Aucune couche sélectionnée.")
@@ -245,15 +257,6 @@ class Eblouissement:
         if directory:
             self.dlg.text_mnt.setText(directory)
             
-    def loadSrFolder(self):
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        directory = QFileDialog.getExistingDirectory(
-            self.dlg, "Choisir un dossier contenant des fichiers shp...", 
-            options=options
-        )
-        if directory:
-            self.dlg.text_sr.setText(directory)
                
     def chooseDirectory(self):
         options = QFileDialog.Options()
@@ -355,14 +358,59 @@ class Eblouissement:
     def SunButton(self):
         df_pts = self.createDataframe()
         mnt_folder = self.dlg.text_mnt.text()
-        trajectoire = Trajectoire(df_pts, mnt_folder)
+        sr_folder = self.dlg.text_sr.text()
+        trajectoire = Trajectoire(df_pts, mnt_folder,sr_folder)
         df_pts_maj = trajectoire.get_df_pts_maj()
         self.addSunFields(df_pts_maj)
         
     
     # Créer et enregistrer un export (csv ou json)
+    
+    def chooseDirectory(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        directory = QFileDialog.getExistingDirectory(
+            self.dlg, "Choisir un chemin où enregistrer les exports...", 
+            options=options
+        )
+        if directory:
+            self.dlg.text_export.setText(directory)
+    
+    def DataFrame2Export(self):
+        layer = self.dlg.select_traj.currentLayer()
+        if not layer:
+            raise ValueError("Aucune couche sélectionnée.")
+        lon_field = self.dlg.select_lon.currentText()
+        lat_field = self.dlg.select_lat.currentText()
+        alt_field = self.dlg.select_alt.currentText()
+        time_field = self.dlg.select_time.currentText()
+        cap_field = self.dlg.select_cap.currentText()
+        assiette_field = self.dlg.select_assiette.currentText()
+        az_field = 'az_sun'
+        h_field = 'h_sun'
+        vis_field = 'visibility'
+        estimation_field = 'éblouissement'
+        fields = [lon_field, lat_field, alt_field, time_field, cap_field, assiette_field, az_field, h_field, vis_field, estimation_field]
+        if not all(fields):
+            raise ValueError("Tous les champs nécessaires ne sont pas calculés.")
+        data = []
+        new_names = ['longitude', 'latitude', 'altitude', 'Temps (ISO8601)', 'cap', 'assiette','azimut','hauteur','visibilité','éblouissement']
+        for feature in layer.getFeatures():
+            row = []
+            for field in fields:
+                if field != time_field:    
+                    row.append(feature[field])
+                else:
+                    time = datetime.fromtimestamp(feature[time_field]/1000, tz=timezone.utc)
+                    temps = time.isoformat()
+                    row.append(temps)
+            data.append(row)
+        export_df = pd.DataFrame(data, columns=new_names)
+        return export_df 
           
     def SaveExports(self):
+        # Créer le dataframe contenant les données a exporter
+        df_export = self.DataFrame2Export()
         # Récupérer le chemin du dossier
         directory = self.dlg.text_export.text()
         # Vérifier si le dossier est valide
@@ -371,71 +419,14 @@ class Eblouissement:
             return
         # Générer les fichiers CSV et/ou JSON
         if self.dlg.csv.isChecked():
-            self.GenerateCSV(os.path.join(directory, "SunTraj.csv"))
+            df_export.to_csv(os.path.join(directory, "Eblouissement.csv"))
+            print("Le fichier CSV a été enregistrer.")
         if self.dlg.json.isChecked():
-            self.GenerateJSON(os.path.join(directory, "SunTraj.json"))
+            df_export.to_json(os.path.join(directory, "Eblouissement.json"))
+            print("Le fichier JSON a été enregistrer.")
     
-    def GenerateCSV(self, filepath):
-        layer = self.dlg.select_traj.currentLayer()
-        try:
-            with open(filepath, mode='w', newline='', encoding='utf-8') as csv_file:
-                writer = csv.writer(csv_file)
-                field_names = [field.name() for field in layer.fields()]
-                writer.writerow(field_names)
-                for feature in layer.getFeatures():
-                    writer.writerow([feature[field.name()] for field in layer.fields()])
-            print(f"Exportation terminée. Fichier CSV enregistré à : {filepath}")
-        except Exception as e:
-            print(f"Erreur lors de l'exportation CSV : {e}")
     
-    # @staticmethod
-    # def QVariant_to_python(value):
-    #     """Convertir un QVariant en un type Python natif."""
-    #     if isinstance(value, QVariant):
-    #         if value.isNull():
-    #             return None
-    #         try:
-    #             return value.toPyObject()
-    #         except AttributeError:
-    #             return str(value)  # Fallback si aucune autre méthode n'est disponible
-    #     return value
-
-    # def GenerateJSON(self, filepath):
-    #     layer = self.dlg.select_traj.currentLayer()
-    #     try:
-    #         features_list = []
-    #         for feature in layer.getFeatures():
-    #             feature_dict = {
-    #                 field.name(): self.QVariant_to_python(feature[field.name()])
-    #                 for field in layer.fields()
-    #             }
-    #             features_list.append(feature_dict)
-    #         with open(filepath, 'w', encoding='utf-8') as json_file:
-    #             json.dump(features_list, json_file, ensure_ascii=False, indent=4)
-    #         print(f"Exportation terminée. Fichier JSON enregistré à : {filepath}")
-    #     except Exception as e:
-    #         print(f"Erreur lors de l'exportation JSON : {e}")
-        
-      # def addPtsLayer(self):
-    #     trajectoire = self.trajectoire
-    #     df_pts = trajectoire.df_pts
-    #     layer = QgsVectorLayer("point?crs=epsg:4326", "trajectoire", "memory")
-    #     provider = layer.dataProvider()
-    #     provider.addAttributes([
-    #         QgsField("longitude", QVariant.Double),
-    #         QgsField("latitude", QVariant.Double),
-    #         QgsField("altitude", QVariant.Double),
-    #     ])
-    #     layer.updateFields()
-    #     features = []
-    #     for _, row in df_pts.iterrows():
-    #         point = QgsPointXY(row['longitude'], row['latitude'])
-    #         feature = QgsFeature()
-    #         feature.setGeometry(QgsGeometry.fromPointXY(point))
-    #         feature.setAttributes([row['longitude'], row['latitude'], row['alt_m']])
-    #         features.append(feature)
-    #     provider.addFeatures(features)
-    #     QgsProject.instance().addMapLayer(layer)
+    # Afficher l'éblouissement
     
     def displaySun(self):
         layer = self.dlg.select_traj.currentLayer()  # Couche sélectionnée dans l'interface
@@ -443,6 +434,9 @@ class Eblouissement:
         lon_field = self.dlg.select_lon.currentText()
         lat_field = self.dlg.select_lat.currentText()
         alt_field = self.dlg.select_alt.currentText()
+        time_field = self.dlg.select_time.currentText()
+        cap_field = self.dlg.select_cap.currentText()
+        assiette_field = self.dlg.select_assiette.currentText()
         az_field = 'az_sun'
         h_field = 'h_sun'
         vis_field = 'visibility'
@@ -455,6 +449,9 @@ class Eblouissement:
             QgsField("longitude", QVariant.Double),
             QgsField("latitude", QVariant.Double),
             QgsField("altitude", QVariant.Double),
+            QgsField("temps (ISO8601)", QVariant.String),
+            QgsField("cap", QVariant.Double),
+            QgsField("assiette", QVariant.Double),
             QgsField("azimut", QVariant.Double),
             QgsField("hauteur", QVariant.Double),
             QgsField("visibilité", QVariant.Bool),
@@ -467,6 +464,10 @@ class Eblouissement:
             lon = feature[lon_field]
             lat = feature[lat_field]
             alt = feature[alt_field]
+            time = datetime.fromtimestamp(feature[time_field]/1000, tz=timezone.utc)
+            temps = time.isoformat()
+            cap = feature[cap_field]
+            assiette = feature[assiette_field]
             az_sun = feature[az_field]
             h_sun = feature[h_field]
             visibility = feature[vis_field]
@@ -474,129 +475,17 @@ class Eblouissement:
             new_feature = QgsFeature()
             point = QgsPointXY(lon, lat)
             new_feature.setGeometry(QgsGeometry.fromPointXY(point))
-            new_feature.setAttributes([lon, lat, alt, az_sun, h_sun, visibility, éblouissement])
-            if visibility:
-                symbol = QgsMarkerSymbol.createSimple({'name': 'arrow', 'color': 'red', 'size': '3'})
-                QgsMarkerSymbol.setAngle(az_sun)
-                QgsMarkerSymbol.setColor(az_sun)
+            new_feature.setAttributes([lon, lat, alt, temps, cap, assiette, az_sun, h_sun, visibility, éblouissement])
             features.append(new_feature)
         provider.addFeatures(features)
         # Ajouter les points sur la carte 2D QGIS
         QgsProject.instance().addMapLayer(new_layer)
         # Ajouter les flèches pour représenter le Soleil
-        
-        symbol_layer = symbol.symbolLayer(0)
-        # Vérifier que symbol_layer est valide et est du type approprié
-        if isinstance(symbol_layer, QgsSimpleMarkerSymbolLayer):
-            # Définir les propriétés dynamiques
-            symbol_layer.setDataDefinedProperty(
-                QgsSimpleMarkerSymbolLayer.PropertyAngle, QgsProperty.fromExpression('"az_sun"')  # Orientation selon l'azimut
-            )
-            symbol_layer.setDataDefinedProperty(
-                QgsSimpleMarkerSymbolLayer.PropertySize, QgsProperty.fromExpression(
-                    'CASE WHEN "visibility" THEN 3 ELSE 0 END'  # Taille selon visibilité
-                )
-            )
-            symbol_layer.setDataDefinedProperty(
-                QgsSimpleMarkerSymbolLayer.PropertyFillColor, QgsProperty.fromExpression(
-                    'color_rgb(255, 255 - "éblouissement" * 2.55, 0)'  # Couleur selon l'éblouissement
-                )
-            )
-            symbol_layer.setDataDefinedProperty(
-                QgsSimpleMarkerSymbolLayer.PropertyOpacity, QgsProperty.fromExpression(
-                    '"visibility" * 1.0'  # Opacité si visible
-                )
-            )
-        # Appliquer le symbole à la couche
-        new_layer.renderer().setSymbol(symbol)
+        style_path = str(os.path.abspath(__file__)).replace("Eblouissement.py", "style.qml")
+        new_layer.loadNamedStyle(style_path)
         new_layer.triggerRepaint()
-        print("Les flèches ont été ajoutées à la couche 'Sun'.")
-        
-       
-                
-        
-        
-    # Méthodes pour le calcul de la visibilité
-
-    # def loadMntFolder(self):
-    #     options = QFileDialog.Options()
-    #     options |= QFileDialog.DontUseNativeDialog
-    #     directory = QFileDialog.getExistingDirectory(
-    #         self.dlg, "Choisir un dossier contenant des fichiers hgt...", 
-    #         options=options
-    #     )
-    #     if directory:
-    #         self.dlg.text_mnt.setText(directory)
-
-            
-    # def getMntFilesNames(self,emprise):
-    #     # Récupère l'emprise de la trajectoire
-    #     lon_min = emprise[0][0]
-    #     lon_max = emprise[0][1]
-    #     lat_min = emprise[1][0]
-    #     lat_max = emprise[1][1]
-    #     # Détermine les extremums
-    #     N_inf = np.floor(lat_min)
-    #     N_sup = np.floor(lat_max) + 1
-    #     E_inf = np.floor(lon_min)
-    #     E_sup = np.floor(lon_max) + 1
-    #     # Détermine les noms de tous les fichiers dont nous avons besoin
-    #     list_files_names = []
-    #     for n in range (int(N_sup-N_inf)):
-    #         val_N = N_inf + n
-    #         for e in range (int(E_sup-E_inf)):
-    #             val_E = E_inf + e
-    #             file_name = 'N' + str(int(val_N)) + 'E' + str(int(val_E)).zfill(3) + '.hgt'
-    #             list_files_names.append(file_name)
-    #     return list_files_names
-        
-    
-    # def getMntPaths(self,list_files_names):
-    #     MntPaths = []
-    #     folder = self.dlg.text_mnt.text()
-    #     for k in range(len(list_files_names)):
-    #         path = str(folder) + str(list_files_names[k])
-    #         MntPaths.append(path)
-    #     return MntPaths
-
-
-    # def loadCSVFile(self):
-    #     options = QFileDialog.Options()
-    #     options |= QFileDialog.DontUseNativeDialog
-    #     filename, _ = QFileDialog.getOpenFileName(
-    #         self.dlg, "Choisir un fichier csv...", "", "All files (*);;CSV Files (*.csv)",
-    #         options=options
-    #     )
-    #     if filename:
-    #         self.dlg.txt_traj.setText(filename)
-    #         self.trajectoire = Trajectoire(filename)
         
         
     
-    # def addPtsLayer(self):
-    #     trajectoire = self.trajectoire
-    #     df_pts = trajectoire.df_pts
-    #     layer = QgsVectorLayer("point?crs=epsg:4326", "trajectoire", "memory")
-    #     provider = layer.dataProvider()
-    #     provider.addAttributes([
-    #         QgsField("longitude", QVariant.Double),
-    #         QgsField("latitude", QVariant.Double),
-    #         QgsField("altitude", QVariant.Double),
-    #     ])
-    #     layer.updateFields()
-    #     features = []
-    #     for _, row in df_pts.iterrows():
-    #         point = QgsPointXY(row['longitude'], row['latitude'])
-    #         feature = QgsFeature()
-    #         feature.setGeometry(QgsGeometry.fromPointXY(point))
-    #         feature.setAttributes([row['longitude'], row['latitude'], row['alt_m']])
-    #         features.append(feature)
-    #     provider.addFeatures(features)
-    #     QgsProject.instance().addMapLayer(layer)
-        
-
-    
-            
-
 
         

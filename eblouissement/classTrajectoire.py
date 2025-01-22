@@ -3,9 +3,10 @@ import numpy as np
 from .classPoint import Point
 
 class Trajectoire:
-    def __init__(self, df_pts, mnt_folder):
+    def __init__(self, df_pts, mnt_folder,sr_folder):
         self.df_pts = df_pts
         self.mnt_folder = mnt_folder
+        self.sr_folder = sr_folder
         self.list_pts = self.create_list_pts()
         self.df_pts_maj = self.maj_df_pts()
         
@@ -14,6 +15,8 @@ class Trajectoire:
         return self.df_pts
     def get_mnt_folder(self):
         return self.mnt_folder
+    def get_sr_folder(self):
+        return self.sr_folder
     def get_list_pts(self):
         return self.list_pts
     def get_df_pts_maj(self):
@@ -21,7 +24,9 @@ class Trajectoire:
     
 
     def create_list_pts(self):
+        print("Calcul des champs aimut, hauteur, visibilité et éblouissement en cours...")
         mnt_folder = self.get_mnt_folder()
+        sr_folder = self.get_sr_folder()
         list_pts = []
         df_pts = self.get_df_pts()
         nb_pts = len(df_pts)
@@ -32,7 +37,7 @@ class Trajectoire:
             tTS_ms = df_pts.at[pt, 'tTS_ms']
             cap = df_pts.at[pt, 'cap']
             assiette = df_pts.at[pt, 'assiette']
-            point = Point(longitude, latitude, altitude, tTS_ms, cap, assiette, mnt_folder)
+            point = Point(longitude, latitude, altitude, tTS_ms, cap, assiette, mnt_folder, sr_folder)
             list_pts.append(point)
         return list_pts
     
@@ -55,6 +60,3 @@ class Trajectoire:
                             [lat_min, lat_max]])
         return emprise
 
-
-
-    
