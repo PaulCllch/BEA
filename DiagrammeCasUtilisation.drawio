@@ -19,8 +19,8 @@
             <mxPoint x="440" y="210" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="Cp8m91pTQywnMTWisGuW-1" value="Choisir " style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="210" y="148" width="156" height="80" as="geometry" />
+        <mxCell id="Cp8m91pTQywnMTWisGuW-1" value="Choisir entre utiliser les MNT de l&#39;IGN ou ceux d&#39;un dossier contenant des fichiers hgt" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="210" y="142" width="156" height="98" as="geometry" />
         </mxCell>
         <mxCell id="Cp8m91pTQywnMTWisGuW-7" value="&lt;div&gt;Sélectionner la couche&amp;nbsp;&lt;/div&gt;&lt;div&gt;surfaces réfléchissantes&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="210" y="280" width="147.5" height="80" as="geometry" />
