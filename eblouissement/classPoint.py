@@ -1,15 +1,17 @@
 import numpy as np
 import pandas as pd
 import math
+import os.path
+import json
 from datetime import datetime, timezone, timedelta
 from .classMNT import Mnt
-from .classSR import SR
-
+from .ign import get_ign_elevations
 
 class Point:
-    def __init__(self, longitude, latitude, altitude,  tTS_ms, cap, assiette, mnt_folder, sr_folder):
+    def __init__(self, longitude, latitude, altitude,  tTS_ms, cap, assiette, mnt_folder, sr_layer, bool_france):
         self.mnt_folder = mnt_folder
-        self.sr_folder = sr_folder
+        self.sr_layer = sr_layer
+        self.bool_france = bool_france
         self.longitude = longitude
         self.latitude = latitude
         self.altitude = altitude
@@ -19,6 +21,7 @@ class Point:
         self.azimuth , self.hauteur = self.get_azimut_hauteur()
         self.visibility = self.calcul_visibility()
         self.estimation = self.calcul_estimation_eblouissement()
+        
         
     
     def get_longitude(self):
@@ -114,40 +117,82 @@ class Point:
         depression_horizon = math.degrees(math.sqrt(2 * h_km / R))
         refraction_correction = 1.02 / math.tan(math.radians(hauteur) + 10.3 / (hauteur + 5.11))
         hauteur = hauteur + refraction_correction - depression_horizon
-        # Chargement de la première dalle utile
-        val_N = np.floor(lat_deg)
-        val_E = np.floor(lon_deg)
-        mnt_file_name = 'N' + str(int(val_N)) + 'E' + str(int(val_E)).zfill(3) + '.hgt'
-        mnt_path = str(mnt_folder) + '/' + str(mnt_file_name)
-        mnt = Mnt(mnt_path,resolution=3)        
-        for distance in range(20):
-            # Longitude et latitude d'un point sur la direction point de la trajectoire soleil
-            lat_mnt_rad = math.asin(math.sin(lat_rad) * math.cos(distance / R) + math.cos(lat_rad) * math.sin(distance / R) * math.cos(azimut))
-            lon_mnt_rad = lon_rad + math.atan2(math.sin(azimut) * math.sin(distance / R) * math.cos(lat_rad), math.cos(distance / R) - math.sin(lat_rad) * math.sin(lat_mnt_rad))
-            lat_mnt_deg = math.degrees(lat_mnt_rad)
-            lon_mnt_deg = math.degrees(lon_mnt_rad)
-            # Chargement d'une nouvelle dalle si besoin
-            new_val_N, new_val_E = int(np.floor(lat_mnt_deg)), int(np.floor(lon_mnt_deg))
-            if new_val_N != val_N or new_val_E != val_E:
-                val_N, val_E = new_val_N, new_val_E
-                mnt_file_name =  'N' + str(int(val_N)) + 'E' + str(int(val_E)).zfill(3) + '.hgt'
-                mnt_path = str(mnt_folder) + '/' + str(mnt_file_name)
-                mnt = Mnt(mnt_path, resolution=3) 
-            # Détermination de l'altitude de ce point
-            alt_mnt = mnt.getAltitude(lat_mnt_deg,lon_mnt_deg)
-            # Calcul de l'angle vertical
-            delta_lat = lat_mnt_deg - lat_deg
-            delta_lon = lon_mnt_deg - lon_deg 
-            a = math.sin(delta_lat / 2)**2 + math.cos(lat_deg) * math.cos(lat_mnt_deg) * math.sin(delta_lon / 2)**2
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-            d_h = R * c 
-            d_v = (alt_mnt - altitude) / 1000
-            angle_rad = math.atan2(d_v, d_h)
-            angle_deg = math.degrees(angle_rad)
-            # Si un des points déterminé à un angle vertical supérieur à l'élévation le soleil est caché
-            if angle_deg > hauteur:
-                return False
-        # Sinon, le soleil est visible
+        # Dans le cas ou on se situe en France et que l'utilisateur veut les MNT de l'IGN
+        if self.bool_france:
+            lon_list = []
+            lat_list = []
+            for d in range(500):
+                distance = d*0.1
+                # Longitude et latitude d'un point sur la direction point de la trajectoire soleil
+                lat_mnt_rad = math.asin(math.sin(lat_rad) * math.cos(distance / R) + math.cos(lat_rad) * math.sin(distance / R) * math.cos(azimut))
+                lon_mnt_rad = lon_rad + math.atan2(math.sin(azimut) * math.sin(distance / R) * math.cos(lat_rad), math.cos(distance / R) - math.sin(lat_rad) * math.sin(lat_mnt_rad))
+                lat_mnt_deg = math.degrees(lat_mnt_rad)
+                lon_mnt_deg = math.degrees(lon_mnt_rad)
+                lon_list.append(lon_mnt_deg)
+                lat_list.append(lat_mnt_deg)
+            # Alttitudes des points sur la direction point de la trajectoire soleil
+            geoservices_path = os.path.join(os.path.dirname(__file__), "geoservices.json")
+            with open(geoservices_path, "r") as f:
+                geoservices = json.load(f)
+            url = geoservices["url_alti"]
+            query_type = geoservices["query_type"]
+            resource = geoservices["resource"]
+            delimiter = geoservices["delimiter"]
+            max_size = geoservices["max_query_number"]
+            json_key = geoservices["json_key"]
+            alt_list = get_ign_elevations(lon_list, lat_list, url, query_type, resource, delimiter, max_size, json_key)
+            for k in range(len(alt_list)):
+                # Calcul de l'angle vertical
+                delta_lat = lat_list[k] - lat_deg
+                delta_lon = lon_list[k] - lon_deg 
+                a = math.sin(delta_lat / 2)**2 + math.cos(lat_deg) * math.cos(lat_mnt_deg) * math.sin(delta_lon / 2)**2
+                c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                d_h = R * c 
+                d_v = (alt_list[k] - altitude) / 1000
+                angle_rad = math.atan2(d_v, d_h)
+                angle_deg = math.degrees(angle_rad)
+                if angle_deg > hauteur:
+                    return False
+        # Dans le cas ou nous somme à l'étranger et que l'utilisateur a renseigner un dossier contenant des fichiers hgt
+        else:           
+            # Chargement de la première dalle utile
+            east_west = 'E' if lon_deg >= 0 else 'W'
+            north_south = 'N' if lat_deg >= 0 else 'S'
+            mnt_file_name1 = "{}{}{}{}.hgt".format(north_south, str(int(abs(math.floor(lat_deg)))).zfill(2),
+                                                  east_west, str(int(abs(math.floor(lon_deg)))).zfill(3))
+            mnt_path = str(mnt_folder) + '/' + str(mnt_file_name1)
+            mnt = Mnt(mnt_path,resolution=3)        
+            for d in range(1000):
+                distance = d*0.1
+                # Longitude et latitude d'un point sur la direction point de la trajectoire soleil
+                lat_mnt_rad = math.asin(math.sin(lat_rad) * math.cos(distance / R) + math.cos(lat_rad) * math.sin(distance / R) * math.cos(azimut))
+                lon_mnt_rad = lon_rad + math.atan2(math.sin(azimut) * math.sin(distance / R) * math.cos(lat_rad), math.cos(distance / R) - math.sin(lat_rad) * math.sin(lat_mnt_rad))
+                lat_mnt_deg = math.degrees(lat_mnt_rad)
+                lon_mnt_deg = math.degrees(lon_mnt_rad)
+                # Chargement d'une nouvelle dalle si besoin
+                east_west = 'E' if lon_mnt_deg >= 0 else 'W'
+                north_south = 'N' if lat_mnt_deg >= 0 else 'S'
+                mnt_file_name2 = "{}{}{}{}.hgt".format(north_south, str(int(abs(math.floor(lat_mnt_deg)))).zfill(2),
+                                                      east_west, str(int(abs(math.floor(lon_mnt_deg)))).zfill(3))
+                if mnt_file_name2 != mnt_file_name1:
+                    mnt_file_name1 =  mnt_file_name2
+                    mnt_path = str(mnt_folder) + '/' + str(mnt_file_name1)
+                    mnt = Mnt(mnt_path, resolution=3) 
+                # Détermination de l'altitude de ce point
+                alt_mnt = mnt.getAltitude(lat_mnt_deg,lon_mnt_deg)
+                # Calcul de l'angle vertical
+                delta_lat = lat_mnt_deg - lat_deg
+                delta_lon = lon_mnt_deg - lon_deg 
+                a = math.sin(delta_lat / 2)**2 + math.cos(lat_deg) * math.cos(lat_mnt_deg) * math.sin(delta_lon / 2)**2
+                c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                d_h = R * c 
+                d_v = (alt_mnt - altitude) / 1000
+                angle_rad = math.atan2(d_v, d_h)
+                angle_deg = math.degrees(angle_rad)
+                # Si un des points déterminé à un angle vertical supérieur à l'élévation le soleil est caché
+                if angle_deg > hauteur:
+                    return False
+            # Sinon, le soleil est visible
         return True
     
     
@@ -168,8 +213,9 @@ class Point:
         hauteur = self.hauteur
         diff_angle_verticale = assiette-hauteur
         estimation_verticale = np.exp(-0.00035*diff_angle_verticale**2)
-        # sr_folder = self.sr_folder
-        # if sr_folder != '':
+        # sr_layer = self.sr_layer
+        # pts_reflecto = self.getIntersect(lon,lat,azimut,sr_layer)
+        
         #     sr = SR(sr_folder)
         #     pts_reflect = sr.Intersect(lon,lat,az)
         #     for pt_reflect in pts_reflect:
@@ -185,3 +231,19 @@ class Point:
         estimation = ((estimation_horizontale)**2 * estimation_verticale) * 100
         return estimation
 
+    # def getIntersect(self,lon,lat,azimut,mnt_folder,sr_layer):
+    #     pts_reflecto = []
+    #     lon_rad = math.radians(lon)
+    #     lat_rad = math.radians(lat)
+    #     R = 6371
+    #     for distance in range(20):
+    #         # Longitude et latitude d'un point sur la direction point de la trajectoire soleil
+    #         lat_r_rad = math.asin(math.sin(lat_rad) * math.cos(distance / R) + math.cos(lat_rad) * math.sin(distance / R) * math.cos(azimut))
+    #         lon_r_rad = lon_rad + math.atan2(math.sin(azimut) * math.sin(distance / R) * math.cos(lat_rad), math.cos(distance / R) - math.sin(lat_rad) * math.sin(lat_r_rad))
+    #         lat_r_deg = math.degrees(lat_r_rad)
+    #         lon_r_deg = math.degrees(lon_r_rad)
+    #         # test si lat_r_deg et lon_r_deg
+    #         pts_reflecto.append(lon_r_deg,lat_r_geh,alt_r)
+    #     return pts_reflecto
+        
+        

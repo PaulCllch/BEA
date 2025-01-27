@@ -1,0 +1,10 @@
+{
+  "url_alti": "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json",
+  "resource": "ign_rge_alti_wld",
+  "query_type": "post",
+  "delimiter": "|",
+  "max_query_number": 5000,
+  "json_key": "elevations",
+  "ortho_france": "crs={epsg}&dpiMode=0&format=image/png&layers=HR.ORTHOIMAGERY.ORTHOPHOTOS&styles&url=https://data.geopf.fr/wms-r?VERSION%3D1.3.0",
+  "ortho_world": "type=xyz&url=https://mt1.google.com/vt/lyrs%3Ds%26x%3D%7Bx%7D%26y%3D%7By%7D%26z%3D%7Bz%7D&zmax=18&zmin=0"
+}

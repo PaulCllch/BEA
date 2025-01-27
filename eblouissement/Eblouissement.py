@@ -23,7 +23,7 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsProject, QgsPointXY, QgsRendererRange, QgsSymbol, QgsMarkerSymbol, QgsProperty, QgsSymbolLayer, QgsSimpleMarkerSymbolLayer, QgsFieldProxyModel
 
 # Initialize Qt resources from file resources.py
@@ -208,6 +208,10 @@ class Eblouissement:
                         
             self.dlg.parcourir_export.clicked.connect(self.chooseDirectory)
             self.dlg.button_export.clicked.connect(self.SaveExports)
+            
+            self.dlg.rb_etranger.toggled.connect(self.dlg.text_mnt.setEnabled)
+            self.dlg.rb_etranger.toggled.connect(self.dlg.parcourir_mnt.setEnabled)
+
         
         # show the dialog
         self.dlg.show()
@@ -257,18 +261,7 @@ class Eblouissement:
         if directory:
             self.dlg.text_mnt.setText(directory)
             
-               
-    def chooseDirectory(self):
-        options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        directory = QFileDialog.getExistingDirectory(
-            self.dlg, "Choisir un chemin où enregistrer les exports...", 
-            options=options
-        )
-        if directory:
-            self.dlg.text_export.setText(directory)
-    
-    
+                
     # Mise à jour de la table d'attribut
             
     def createDataframe(self):
@@ -358,10 +351,16 @@ class Eblouissement:
     def SunButton(self):
         df_pts = self.createDataframe()
         mnt_folder = self.dlg.text_mnt.text()
-        sr_folder = self.dlg.text_sr.text()
-        trajectoire = Trajectoire(df_pts, mnt_folder,sr_folder)
+        sr_layer = self.dlg.select_traj.currentLayer()
+        trajectoire = Trajectoire(df_pts, mnt_folder,sr_layer,bool_france=self.dlg.rb_france.isChecked())
         df_pts_maj = trajectoire.get_df_pts_maj()
         self.addSunFields(df_pts_maj)
+        msg = QMessageBox()
+        msg.setWindowTitle("Message")
+        msg.setText(f"Couche {self.dlg.select_traj.currentLayer().name()} modifiée avec les champs : 'az_sun', 'h_sun', 'visibility' et 'éblouissemement'...")
+        msg.setIcon(QMessageBox.Information)
+        res = msg.exec_()
+     
         
     
     # Créer et enregistrer un export (csv ou json)
@@ -424,6 +423,11 @@ class Eblouissement:
         if self.dlg.json.isChecked():
             df_export.to_json(os.path.join(directory, "Eblouissement.json"))
             print("Le fichier JSON a été enregistrer.")
+            msg = QMessageBox()
+            msg.setWindowTitle("Message")
+            msg.setText("Les fichiers ont été enregistrés...")
+            msg.setIcon(QMessageBox.Information)
+            res = msg.exec_()
     
     
     # Afficher l'éblouissement
@@ -481,9 +485,15 @@ class Eblouissement:
         # Ajouter les points sur la carte 2D QGIS
         QgsProject.instance().addMapLayer(new_layer)
         # Ajouter les flèches pour représenter le Soleil
-        style_path = str(os.path.abspath(__file__)).replace("Eblouissement.py", "style.qml")
+        # style_path = str(os.path.abspath(__file__)).replace("Eblouissement.py", "style.qml")
+        style_path = os.path.join(os.path.dirname(__file__), "style.qml")
         new_layer.loadNamedStyle(style_path)
         new_layer.triggerRepaint()
+        msg = QMessageBox()
+        msg.setWindowTitle("Message")
+        msg.setText("La couche 'Sun' a été crée...")
+        msg.setIcon(QMessageBox.Information)
+        res = msg.exec_()
         
         
     
